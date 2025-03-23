@@ -14,27 +14,27 @@ class PostController extends Controller
 {
     public function index(Request $request)
     {
-        $query= Post::query(); 
+        $query = Post::query();
         // nombre d'element par page
-        $perPage = 3; 
+        $perPage = 3;
         // L'utilisateur est par defaut sur la page 1
-        $page = $request->input('page', 1); 
+        $page = $request->input('page', 1);
         // la barre de recherche 
-        $search = $request->input('search'); 
+        $search = $request->input('search');
         //L'utilisateur a saisi quelque chose dans la barre de recherche 
-        if ($search){
-            $query->whereRaw("titre LIKE '%". $search . "%'");
-        } 
+        if ($search) {
+            $query->whereRaw("titre LIKE '%" . $search . "%'");
+        }
 
-        $total = $query->count(); 
+        $total = $query->count();
         $result = $query->offset(($page - 1) * $perPage)->limit($perPage)->get();
-        try { 
-            
+        try {
+
             return response()->json([
-                'status_code' => 200, 
-                "status_message" => "Les postes ont été recupérés", 
-                'current_page' => $page, 
-                'last_page' => ceil($total / $perPage), 
+                'status_code' => 200,
+                "status_message" => "Les postes ont été recupérés",
+                'current_page' => $page,
+                'last_page' => ceil($total / $perPage),
                 'items' => $result
             ]);
         } catch (Exception $e) {
@@ -49,6 +49,7 @@ class PostController extends Controller
             $post = new Post();
             $post->titre = $request->titre;
             $post->description = $request->description;
+            $post->user_id = auth()->user()->id;
             $post->save();
 
             return response()->json([
@@ -64,44 +65,63 @@ class PostController extends Controller
     //fonction update pour editer un post
     public function update(EditPostRequest $request, Post $post)
     {
-       try {
-         // dd($request);
-        // $post = Post::find($id);
-        $post->titre = $request->titre;
-        $post->description = $request->description;
-        $post->save(); 
-        
-        return response()->json([
-            'status_code' => 200,
-            'status_message' => "le post a été modifié",
-            "data" => $post
-        ]);
-       } catch (Exception $e) {
-        return response()->json($e);
-       }
-    }
-
-    public function delete(Post $post){
         try {
-            if ($post){
-                $post->delete(); 
-                return response()->json([
-                    'status_code' => 200, 
-                    'status_message' => "le post e a été supprimé", 
-                    'data'=> $post
-                ]);
-            } else {
+            // dd($request);
+            // $post = Post::find($id);
+            $post->titre = $request->titre;
+            $post->description = $request->description;
 
+            if ($post->user_id == auth()->user()->id) {
+
+                $post->save();
+            } else {
                 return response()->json([
-                    'status_code' => 422, 
-                    'status_message' => "Post introuvable", 
-               
+                    'status_code' => 422,
+                    'status_message' => "Vous n'est pas l'auteur de ce poste",
+                    "data" => $post
                 ]);
             }
-            
+
+            return response()->json([
+                'status_code' => 200,
+                'status_message' => "le post a été modifié",
+                "data" => $post
+            ]);
         } catch (Exception $e) {
             return response()->json($e);
         }
     }
 
+    public function delete(Post $post)
+    {
+        try { 
+            if ($post->user_id == auth()->user()->id) {
+
+                $post->delete();
+            } else {
+                return response()->json([
+                    'status_code' => 422,
+                    'status_message' => "Vous n'est pas l'auteur de ce poste, suppression non autorisé",
+                    "data" => $post
+                ]);
+            }   
+            if ($post) {
+                $post->delete();
+                return response()->json([
+                    'status_code' => 200,
+                    'status_message' => "le post e a été supprimé",
+                    'data' => $post
+                ]);
+            } else {
+
+                return response()->json([
+                    'status_code' => 422,
+                    'status_message' => "Post introuvable",
+
+                ]);
+            }
+        } catch (Exception $e) {
+            return response()->json($e);
+        }
+    }
 }
